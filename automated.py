@@ -14,24 +14,13 @@ people = ['Alice Ashcraft', 'Francis Foster', 'Robert Brown', 'Carol Clark', 'Da
 items = ['trashcan', 'hamburger', 'coffee', 'calendar']
 
 
-def createItemDict():
-
-    if os.path.isfile("itemDict.p"):
-        itemDict = pickle.load( open( "itemDict.p", "rb" ) )
-        for item in itemDict:
-            for ss in wn.synsets(item):
-                for syn in ss.lemma_names():
-                    itemDict[item].append(syn)
-                for hyp in ss.hypernyms():
-                    for syn in hyp.lemma_names():
-                        itemDict[item].append(syn)
-                    break
-                break
-        return itemDict
+def createWordDict():
+    if os.path.isfile("itemDict.p") and os.path.isfile("verbDict.p"):
+        return {}
+    if os.path.isfile("wordDict.p"):
+        return pickle.load( open( "wordDict.p", "rb" ) )
 
     wordDict = {}
-    itemDict = {}
-
     for line in open("paragram-phrase-XXL.txt"):
         line = line.split()
         key = line.pop(0)
@@ -42,8 +31,31 @@ def createItemDict():
        key = line.pop(0)
        wordDict[key] = np.asarray(line)
 
+    pickle.dump( wordDict, open( "wordDict.p", "wb" ) )
+    return wordDict
+
+def createItemDict(wordDict):
+    print "ent"
+    if os.path.isfile("itemDict.p"):    
+        print ":"
+        itemDict = pickle.load( open( "itemDict.p", "rb" ) )
+        for item in itemDict:
+            for ss in wn.synsets(item):
+                for syn in ss.lemma_names():
+                    itemDict[item].append(syn)
+                for hyp in ss.hypernyms():
+                    for syn in hyp.lemma_names():
+                        itemDict[item].append(syn)
+                    break
+                break
+        print "item"
+        return itemDict
+
+    itemDict = {}
+
+
     for item in items:
-        itemDict[item] = findSimWords(item, wordDict)
+        itemDict[item] = findSimWords(item, wordDict, 0.5)
         for ss in wn.synsets(item):
             for syn in ss.lemma_names():
                 itemDict[item].append(syn)
@@ -53,7 +65,18 @@ def createItemDict():
 
     return itemDict
 
-def findSimWords(word, wordDict):
+def createVerbDict(wordDict):
+
+    if os.path.isfile("verbDict.p"):
+        return pickle.load( open( "verbDict.p", "rb" ) )
+
+    verbDict = {}
+    verbDict["bring"] = findSimWords("bring", wordDict, 0.5)
+    pickle.dump( verbDict, open( "verbDict.p", "wb" ) )
+
+    return verbDict
+
+def findSimWords(word, wordDict, similarity):
     closestItems = []
     if word not in wordDict:
         print "word not recognized"
@@ -63,11 +86,9 @@ def findSimWords(word, wordDict):
         if key == word:
             continue
         compareArray = wordDict[key]
-        if cos_sim(wordArray.reshape(1, -1), compareArray.reshape(1, -1)) > 0.7:
+        if cos_sim(wordArray.reshape(1, -1), compareArray.reshape(1, -1)) > similarity:
             closestItems.append(key)
     return closestItems
-
-
 
 def pickName(person):
     if random.randint(0,1) == 1:
@@ -75,7 +96,6 @@ def pickName(person):
     else:
         name = person
     return name
-
 
 def write(inputFile, nput):
     with open(inputFile, 'w+') as f:
@@ -125,40 +145,76 @@ def setInput(response, person, key):
     elif "What action did you want me to take" in response:
         return "Bring"
 
+def trainItems(user, itemDict):
+    for key in itemDict:
+        person = people[random.randint(0, len(people)) -1]
+        if itemDict[key] == None:
+            continue
+        for item in itemDict[key]:
+            #trash-can should be trash can
 
-user = 0
-itemDict = createItemDict()
+            item = item.replace("-", " ")
 
-for key in itemDict:
-    person = people[random.randint(0, len(people)) -1]
-    if itemDict[key] == None:
-        continue
-    for item in itemDict[key]:
-        #sometimes uses the first name to provide data for user's who
-        #just use the first name
-        name = pickName(person)
-        #choosing a name for filename's sake
-        inputFile = 'dialog/offline_data/inputs/' + str(user) + '_input.txt'
-        #first command known response
-        sendCommand(user)
-        #random input
-        nput = "Please bring " + name + " " + item
-        #overwrites input file with response
-        write(inputFile, nput)
-        #following commands have unknown response
-        while True:
+            #sometimes uses the first name to provide data for user's who
+            #just use the first name
+            name = pickName(person)
+            #choosing a name for filename's sake
+            inputFile = 'dialog/offline_data/inputs/' + str(user) + '_input.txt'
+            #first command known response
             text = sendCommand(user)
-            response = getResponse(text)
-            print response
-            if shouldBreak(response):
-                break
-            nput = setInput(response, person, key)
-            print nput
+
+            #random input
+            nput = "Please bring " + name + " " + item
+            #overwrites input file with response
             write(inputFile, nput)
-        user += 1
+            #following commands have unknown response
+            while True:
+                text = sendCommand(user)
+                response = getResponse(text)
+                print response
+                if shouldBreak(response):
+                    break
+                nput = setInput(response, person, key)
+                print nput
+                write(inputFile, nput)
+            user += 1
+
+def trainVerbs(user, verbDict, itemDict):
+    for key in verbDict:
+        person = people[random.randint(0, len(people)) -1]
+        if itemDict[key] == None:
+            continue
+        for verb in verbDict[key]:
+            item = random.choice(itemDict.keys())
+            #sometimes uses the first name to provide data for user's who
+            #just use the first name
+            name = pickName(person)
+            #choosing a name for filename's sake
+            inputFile = 'dialog/offline_data/inputs/' + str(user) + '_input.txt'
+            #first command known response
+            sendCommand(user)
+            #random input
+            nput = "Please " + verb + " " + name + " a " + item
+            #overwrites input file with response
+            write(inputFile, nput)
+            #following commands have unknown response
+            while True:
+                text = sendCommand(user)
+                response = getResponse(text)
+                print response
+                if shouldBreak(response):
+                    break
+                nput = setInput(response, person, item)
+                print nput
+                write(inputFile, nput)
+            user += 1
+
 #train model on inputs
+user = 5000
+wordDict = createWordDict()
+itemDict = createItemDict(wordDict)
+verbDict = createVerbDict(wordDict)
+trainItems(user, itemDict)
+user = 45
+trainVerbs(user, verbDict, itemDict)
 trainCommand()
-
-
-
-
