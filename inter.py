@@ -2,7 +2,7 @@ import subprocess
 import os.path
 import random
 import re
-from PIL import Image
+#from PIL import Image
 
 
 people = ['Alice Ashcraft', 'Francis Foster', 'Robert Brown', 'Carol Clark', 'Dave Daniel', 'George Green', 'Evelyn Eckhart', 'Mallory Morgan', 'Peggy Parker', 'Walter Ward']
@@ -11,28 +11,28 @@ people = ['Alice Ashcraft', 'Francis Foster', 'Robert Brown', 'Carol Clark', 'Da
 #choosing a name for filename's sake
 name = raw_input("What's your name? ")
 
-directDict = {0 : "original", 1 : "syn", 2: "entropy", 3: "synEntropy"}
-directory = directDict[random.randint(0,3)] + "/"
-inputFile = directory + 'dialog/offline_data/inputs/' + name + '_input.txt'
+inputFile = 'dialog/offline_data/inputs/' + name + '_input.txt'
+logFile = 'dialog/offline_data/logs/' + name + '_command.txt'
 
 #needs to be a unique name
 while(os.path.isfile(inputFile)):
     print "Name already exists, choose another :D" 
     name = raw_input("What's your name? ")
-    inputFile = directory + 'dialog/offline_data/inputs/' + name + '_input.txt'
-
+    inputFile = 'dialog/offline_data/inputs/' + name + '_input.txt'
+    logFile = 'dialog/offline_data/logs/' + name + '_command.txt'
 
 #beginning dialog with robot
-print "Please bring " + people[random.randint(0, len(people)-1)] + " item no. " + str(random.randint(1,5))
-img = Image.open('items.png')
-img.show()
+instruct = people[random.randint(0, len(people)-1)] + " wants item no. " + str(random.randint(1,20))
+print instruct
+#img = Image.open('items.png')
+#img.show()
 
 text = ""
 
 while True:
 
     #starts the python cmd
-    command = ['python', directory +'dialog/main.py', directory +'dialog/', 'offline', str(name)]
+    command = ['python', 'dialog/main.py', 'dialog/', 'offline', str(name)]
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     text = p.stdout.read()
     temp = ""
@@ -50,8 +50,13 @@ while True:
         f.seek(0)
         f.write(response)
         f.truncate()
+        f.close
+
+    with open(logFile, 'w+') as f:
+        f.seek(0)
+        f.write(instruct)
+        f.truncate()
+        f.close
 
 
-
-f.close
 
