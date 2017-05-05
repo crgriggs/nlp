@@ -212,6 +212,7 @@ def trainVerbs(user, verbDict, itemDict):
             print response
             #random input
             nput = verb + " " + name + " a " + item
+            print nput
             #overwrites input file with response
             write(inputFile, nput)
             #following commands have unknown response
